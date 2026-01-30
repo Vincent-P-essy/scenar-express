@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="fr">
+<head>
+	<link rel="manifest" href="manifest.json">
+	<meta name="theme-color" content="#1f6feb">
+
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Scénar' Express</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 0; background: #f6f7fb; }
+    header { padding: 16px 18px; background: white; box-shadow: 0 2px 12px rgba(0,0,0,.06); position: sticky; top: 0; }
+    h1 { margin: 0; font-size: 18px; }
+    main { padding: 16px 18px; max-width: 900px; margin: 0 auto; }
+    .card { background: white; border-radius: 16px; padding: 16px; box-shadow: 0 8px 30px rgba(0,0,0,.07); }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+    button {
+      padding: 14px 14px; border-radius: 14px; border: 0; background: #1f6feb; color: white;
+      font-size: 16px; cursor: pointer; flex: 1 1 260px; text-align: left;
+    }
+    button.secondary { background: #eef2ff; color: #1f2a44; }
+    button.danger { background: #e11d48; }
+    .muted { color: #667085; font-size: 14px; }
+    .path { margin-top: 12px; padding: 12px; background: #f2f4f7; border-radius: 12px; }
+    .result { font-size: 22px; font-weight: 700; margin: 10px 0 0; }
+    .pill { display: inline-block; padding: 6px 10px; border-radius: 999px; background: #e7f6ec; color: #067647; font-weight: 600; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Scénar' Express — parcours décisionnel</h1>
+</header>
+
+<main>
+  <div class="card">
+    <div id="status" class="muted"></div>
+    <div id="resultArea" style="display:none;">
+      <div class="pill">Scénario</div>
+      <div id="result" class="result"></div>
+    </div>
+
+    <div class="row" id="actions">
+      <button class="secondary" id="backBtn" style="display:none;">← Retour</button>
+      <button class="danger" id="resetBtn">Réinitialiser</button>
+    </div>
+
+    <div class="row" id="choices"></div>
+
+    <div class="path">
+      <div class="muted">Chemin</div>
+      <div id="path"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+  // === Données ===
+  const ROOT_OPTIONS = [
+    'Orry-Creil',
+    'Orry - Goussainville',
+    'Goussainville - Villiers Le Bel',
+    'St Denis -Villiers le Bel',
+    'Paris Nord - St Denis',
+    'Tunnel',
+    'Paris (inclus) - Villeneuve',
+    'Villeneuve - Juvisy (inclus)',
+    'Juvisy - Viry',
+    'Viry -Corbeil',
+    'Villeneuve (inclus) -Combs',
+    'Combs la ville - Melun (inclus)',
+    'Corbeil-Melun',
+    'Corbeil-Malesherbes'
+  ];
+
+  const TREE = {
+    "Combs la ville - Melun (inclus)": [
+      "Interruption partielle de circulation (autre cas)",
+      "Interruption partielle de circulation (une voie disponible dans chaque sens)",
+      "Interruption totale de circulation",
+      "Gare de Melun"
+    ],
+    "Interruption partielle de circulation (autre cas)": ["PSE 24 à adapter", "PSE 23 à adapter"],
+    "Interruption partielle de circulation (une voie disponible dans chaque sens)": ["PSE 25", "PSE 23"],
+    "Interruption totale de circulation": ["PSE 24", "PSE 22"],
+    "Gare de Melun": [
+      "Inaccessible",
+      "Partiellement inaccessible : 1BB, 1BR, A accessibles",
+      "Partiellement inaccessible : 1BB, 1BR, 1C & 2C accessibles",
+      "Partiellement inaccessible : 2BB, 2BR, 1C & 2C accessibles",
+      "Partiellement inaccessible : 1BR, 2BR, 1C & 2C accessibles"
+    ],
+    "Inaccessible": ["PSE 27", "PSE 44"],
+    "Partiellement inaccessible : 1BB, 1BR, A accessibles": ["PSE 28"],
+    "Partiellement inaccessible : 1BB, 1BR, 1C & 2C accessibles": ["PSE 29"],
+    "Partiellement inaccessible : 2BB, 2BR, 1C & 2C accessibles": ["PSE 30"],
+    "Partiellement inaccessible : 1BR, 2BR, 1C & 2C accessibles": ["PSE 31"],
+
+    "Villeneuve (inclus) -Combs": ["Gare de Villeneuve St Georges"],
+    "Gare de Villeneuve St Georges": [
+      "Interruption totale de circulation",
+      "Interruption partielle de circulation (une voie disponible dans chaque sens)",
+      "Interruption partielle de circulation (autre cas)",
+      "Inaccessible",
+      "Partiellement inaccessible : 1, 2, 1M, 2M, 1B, & A accessible",
+      "Partiellement inaccessible : 1, 2, 1M, 2M, 1B accessibles",
+      "Partiellement inaccessible : A, B & 2B",
+      "Partiellement inaccessible : A, B, 1B & 2B accessibles",
+      "Partiellement inaccessible : 1, 2, B & 2B accessibles",
+      "Partiellement inaccessible : 1, 2, & 2B accessibles",
+      "Partiellement inaccessible : 1, 2, & 1M accessibles",
+      "Partiellement inaccessible : 2M, 1B, A, B, 2B accessibles"
+    ],
+    "Partiellement inaccessible : 1, 2, 1M, 2M, 1B, & A accessible": ["PSE 13"],
+    "Partiellement inaccessible : 1, 2, 1M, 2M, 1B accessibles": ["PSE 20"],
+    "Partiellement inaccessible : A, B & 2B": ["PSE 21"],
+    "Partiellement inaccessible : A, B, 1B & 2B accessibles": ["PSE 14"],
+    "Partiellement inaccessible : 1, 2, B & 2B accessibles": ["PSE 15"],
+    "Partiellement inaccessible : 1, 2, & 2B accessibles": ["PSE 16"],
+    "Partiellement inaccessible : 1, 2, & 1M accessibles": ["PSE 17"],
+    "Partiellement inaccessible : 2M, 1B, A, B, 2B accessibles": ["PSE 18"],
+
+    "Villeneuve - Juvisy (inclus)": [
+      "Interruption totale des circulations entre VSB et JY",
+      "Interruption partielle des circulations entre VSB et  JY",
+      "Problème en gare de JY",
+      "Réduction de capacité en gare"
+    ],
+    "Interruption totale des circulations entre VSB et JY": ["PSE 32"],
+    "Interruption partielle des circulations entre VSB et  JY": ["PSE 33"],
+    "Problème en gare de JY": ["Réduction de capacité en gare", "Gare inaccessible"],
+    "Réduction de capacité en gare": ["PSE 35"],
+    "Gare inaccessible": ["PSE 34"],
+
+    "Juvisy - Viry": [
+      "Interruption totale des circulation entre JY et WC",
+      "Interruption totale des circulation entre JY et COE par la vallée",
+      "Interruption totale des circulation entre JY et COE par le plateau",
+      "Interruption partielle des circulation entre JY et WC"
+    ],
+    "Interruption totale des circulation entre JY et WC": ["PSE 37"],
+    "Interruption totale des circulation entre JY et COE par la vallée": ["PSE 36"],
+    "Interruption totale des circulation entre JY et COE par le plateau": ["PSE 39"],
+    "Interruption partielle des circulation entre JY et WC": ["PSE 38"],
+
+    "Viry -Corbeil": [
+      "Interruption totale des circulation entre JY et COE par le plateau",
+      "Interruption totale des circulation entre JY et COE par la vallée",
+      "Interruption partielle sur le plateau : 2R neutralisée (WC accessible)",
+      "Interruption partielle sur le plateau : 1R neutralisée (WC accessible)",
+      "Gare de Corbeil"
+    ],
+    "Interruption partielle sur le plateau : 2R neutralisée (WC accessible)": ["Matinée", "Soirée"],
+    "Interruption partielle sur le plateau : 1R neutralisée (WC accessible)": ["Matinée", "Soirée"],
+    "Matinée": ["PSE 40", "PSE 42"],
+    "Soirée": ["PSE 41", "PSE 43"],
+    "Gare de Corbeil": [
+      "Inaccessible",
+      "Partiellement inaccessible : 1, 4 accessibles",
+      "Partiellement inaccessible : C, 2, 4 accessibles",
+      "Partiellement inaccessible : B, C, 2, 4 accessibles",
+      "Partiellement inaccessible : 1, 2, 4 & A accessibles"
+    ],
+    "Partiellement inaccessible : 1, 4 accessibles": ["PSE 45", "PSE 47"],
+    "Partiellement inaccessible : C, 2, 4 accessibles": ["PSE 46"],
+    "Partiellement inaccessible : B, C, 2, 4 accessibles": ["PSE 47"],
+    "Partiellement inaccessible : 1, 2, 4 & A accessibles": ["PSE 48"],
+
+    "Orry-Creil": ["Creil inaccessible"],
+    "Creil inaccessible": ["PN 01"],
+    "Orry - Goussainville": ["Interruption totale ORY-GOU", "Interruption partielle ORY-GOU"],
+    "Interruption totale ORY-GOU": ["PN 04"],
+    "Interruption partielle ORY-GOU": [
+      "1L et 2L neutralisées, 1D et 2D autorisés pour 2 trains/h",
+      "1L neutralisée, 1D et 2L autorisés pour 2 trains/h",
+      "2L neutralisée, 1D et 2L autorisés pour 2 trains/h"
+    ],
+    "1L et 2L neutralisées, 1D et 2D autorisés pour 2 trains/h": ["PN 05"],
+    "1L neutralisée, 1D et 2L autorisés pour 2 trains/h": ["PN 06"],
+    "2L neutralisée, 1D et 2L autorisés pour 2 trains/h": ["PN 07"],
+
+    "Goussainville - Villiers Le Bel": ["Interruption totale GOU-VIB", "Interruption partielle GOU-VIB", "Interruption partielle GOU-GDS"],
+    "Interruption totale GOU-VIB": ["PN 08"],
+    "Interruption partielle GOU-GDS": ["PN 12"],
+    "Interruption partielle GOU-VIB": [
+      "1L et 2L neutralisées, 1D et 2D autorisés pour 2 trains/h",
+      "1L neutralisée, 1D, 2D et 2L autorisés pour 2 trains/h",
+      "2L neutralisée, 1L, 1D et 2D autorisés pour 2 trains/h"
+    ],
+    "1L neutralisée, 1D, 2D et 2L autorisés pour 2 trains/h": ["PN 09"],
+    "2L neutralisée, 1L, 1D et 2D autorisés pour 2 trains/h": ["PN 11"],
+    "1L neutralisée, 1D et 2L autorisés pour 2 trains/h": ["PN 10"],
+
+    "St Denis -Villiers le Bel": ["Perte du poste du 2B", "Interruption totale VIB - SFD", "Interruption partielle VIB - SFD"],
+    "Perte du poste du 2B": ["PN 13"],
+    "Interruption totale VIB - SFD": ["PN 16"],
+    "Interruption partielle VIB - SFD": ["1L interceptée 1D accessible", "2L interceptée"],
+    "1L interceptée 1D accessible": ["PN 17"],
+    "2L interceptée": ["PN 18"],
+
+    "Paris Nord - St Denis": ["Interruption totale GDS - SFD", "GDS inaccessible", "PNB (surface) inaccessible", "PNB (surface) & GDS inaccessible"],
+    "Interruption totale GDS - SFD": ["PN 19"],
+    "GDS inaccessible": ["PN 20"],
+    "PNB (surface) inaccessible": ["PN 21"],
+    "PNB (surface) & GDS inaccessible": ["PN 22"],
+
+    "Tunnel": ["Interruption totale MA-VD", "Interruption partielle PAA-VD", "Perte du poste du PCD VSG (ex PA)"],
+    "Interruption totale MA-VD": ["PSE 07"],
+    "Interruption partielle PAA-VD": ["Voies 1, 2 et 1M accessibles", "Autres"],
+    "Voies 1, 2 et 1M accessibles": ["PSE 09"],
+    "Autres": ["PSE 08"],
+    "Perte du poste du PCD VSG (ex PA)": ["Totale", "Partielle"],
+    "Totale": ["PSE 12"],
+    "Partielle": ["PSE 11"],
+
+    "Paris (inclus) - Villeneuve": ["Paris Gare de Lyon Surface inaccessible", "Paris Gare de Lyon Souterraine inaccessible"],
+    "Paris Gare de Lyon Surface inaccessible": ["Hall 1 ou 2", "Hall 1 et T 2 - PAA", "Hall 1 et 2", "Hall 1, 2, et PBV", "Hall 1, 2, PBV & PAA"],
+    "Hall 1 ou 2": ["PSE 01"],
+    "Hall 1 et T 2 - PAA": ["PSE 06"],
+    "Hall 1 et 2": ["PSE 02"],
+    "Hall 1, 2, et PBV": ["PSE 04"],
+    "Hall 1, 2, PBV & PAA": ["PSE 05"],
+    "Paris Gare de Lyon Souterraine inaccessible": ["PSE 03"],
+
+    "Corbeil-Melun": ["PSE 50"],
+    "Corbeil-Malesherbes": ["PSE 49"]
+  };
+
+  const LEAF_RE = /^(PSE|PN|SD|GP)\s*\d+/i;
+  const isLeaf = (s) => LEAF_RE.test((s || "").trim());
+
+  // === Etat ===
+  let path = [];
+  let current = null;
+
+  const elChoices = document.getElementById("choices");
+  const elPath = document.getElementById("path");
+  const elStatus = document.getElementById("status");
+  const backBtn = document.getElementById("backBtn");
+  const resetBtn = document.getElementById("resetBtn");
+  const resultArea = document.getElementById("resultArea");
+  const resultEl = document.getElementById("result");
+
+  function render() {
+    // Path
+    elPath.innerHTML = path.length ? path.map(p => `• ${escapeHtml(p)}`).join("<br>") : "<span class='muted'>Aucun choix.</span>";
+
+    // Bouton retour
+    backBtn.style.display = path.length > 1 ? "inline-flex" : "none";
+
+    // Résultat
+    if (current && isLeaf(current)) {
+      resultArea.style.display = "block";
+      resultEl.textContent = current;
+      elStatus.textContent = "Résultat final atteint.";
+      elChoices.innerHTML = "";
+      return;
+    } else {
+      resultArea.style.display = "none";
+    }
+
+    // Choix disponibles
+    let options;
+    if (!current) {
+      elStatus.textContent = "Étape 1 — Choisis la zone / gare impactée :";
+      options = ROOT_OPTIONS;
+    } else {
+      const kids = TREE[current];
+      if (!kids || !kids.length) {
+        elStatus.textContent = "Fin de branche (pas d'enfants trouvés).";
+        elChoices.innerHTML = "";
+        return;
+      }
+      elStatus.textContent = `Étape suivante — après "${current}", choisis :`;
+      options = kids;
+    }
+
+    elChoices.innerHTML = options.map(opt => `
+  <button onclick='pick(${JSON.stringify(opt)})'>${escapeHtml(opt)}</button>
+	`).join("");
+
+  }
+
+  function pick(opt) {
+    current = opt;
+    path.push(opt);
+    render();
+  }
+
+  function back() {
+    if (path.length <= 1) return;
+    path.pop();
+    current = path[path.length - 1] || null;
+    render();
+  }
+
+  function reset() {
+    path = [];
+    current = null;
+    render();
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, m => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "\"":"&quot;", "'":"&#039;" }[m]));
+  }
+
+  backBtn.addEventListener("click", back);
+  resetBtn.addEventListener("click", reset);
+
+  // Démarrage
+  render();
+</script>
+<script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("./sw.js");
+  }
+</script>
+</body>
+</html>
