@@ -19,7 +19,7 @@ self.addEventListener("fetch", (event) => {
       return (
         cached ||
         fetch(event.request).then((resp) => {
-          // cache au passage (pratique si tu ajoutes des fichiers plus tard)
+          // cache au passage (pratique si on ajoute des fichiers plus tard)
           const copy = resp.clone();
           caches.open(CACHE).then((cache) => cache.put(event.request, copy));
           return resp;
@@ -28,3 +28,4 @@ self.addEventListener("fetch", (event) => {
     })
   );
 });
+
