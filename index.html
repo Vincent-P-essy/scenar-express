@@ -372,8 +372,51 @@
     navigator.serviceWorker.register("./sw.js");
   }
 </script>
+<script>
+(async () => {
+  const box = document.createElement("div");
+  box.style.cssText = "position:fixed;left:10px;right:10px;bottom:10px;background:#fff;border:1px solid #ddd;border-radius:12px;padding:10px;font:12px system-ui;z-index:99999";
+  box.textContent = "Diag PWA…";
+  document.body.appendChild(box);
+
+  // 1) Manifest
+  let manifestOk = false, manifestUrl = "/scenar-express/manifest.json", manifestErr = "";
+  try {
+    const r = await fetch(manifestUrl, { cache: "no-store" });
+    manifestOk = r.ok;
+    if (!r.ok) manifestErr = `HTTP ${r.status}`;
+  } catch (e) { manifestErr = String(e); }
+
+  // 2) Service Worker
+  const swSupported = "serviceWorker" in navigator;
+  let reg = null;
+  try { reg = swSupported ? await navigator.serviceWorker.getRegistration() : null; } catch (e) {}
+  const controlling = !!navigator.serviceWorker.controller;
+
+  // 3) Install prompt
+  let bipFired = false;
+  window.addEventListener("beforeinstallprompt", (e) => {
+    bipFired = true;
+    box.innerHTML += "<br><b>beforeinstallprompt: FIRED ✅</b>";
+    // on le garde pour debug
+    window.__bip = e;
+  });
+
+  box.innerHTML =
+    `<b>PWA DIAG</b><br>` +
+    `manifest fetch: <b>${manifestOk ? "OK" : "FAIL"}</b> ${manifestOk ? "" : "(" + manifestErr + ")"}<br>` +
+    `SW supported: <b>${swSupported}</b><br>` +
+    `SW registered: <b>${!!reg}</b><br>` +
+    `SW controlling: <b>${controlling}</b><br>` +
+    `Install prompt fired: <b>${bipFired}</b> (attends le refresh)<br>` +
+    `<span style="opacity:.7">${navigator.userAgent}</span>`;
+
+})();
+</script>
+
 </body>
 </html>
+
 
 
 
