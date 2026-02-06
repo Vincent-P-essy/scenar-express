@@ -1,4 +1,4 @@
-const CACHE = "scenar-express-v1";
+const CACHE = "scenar-express-v2";
 const ASSETS = ["./", "./index.html", "./manifest.json", "./sw.js"];
 
 self.addEventListener("install", (event) => {
@@ -28,4 +28,5 @@ self.addEventListener("fetch", (event) => {
     })
   );
 });
+
 
