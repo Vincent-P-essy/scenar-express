@@ -1,4 +1,4 @@
-const CACHE = "scenar-express-v113";
+const CACHE = "scenar-express-v114";
 
 // Mets ici TOUT ce qui doit marcher offline direct
 const PRECACHE = [
@@ -79,4 +79,5 @@ async function cacheFirst(req) {
     return cached || Response.error();
   }
 }
+
 
