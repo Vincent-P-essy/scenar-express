@@ -1,7 +1,8 @@
 {
   "name": "Scénar' Express",
   "short_name": "Scénar",
-  "start_url": "./",
+  "start_url": "/scenar-express/",
+  "scope": "/scenar-express/",
   "display": "standalone",
   "background_color": "#f6f7fb",
   "theme_color": "#1f6feb",
@@ -17,6 +18,7 @@
 
 
 }
+
 
 
 
