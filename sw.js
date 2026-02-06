@@ -10,9 +10,13 @@ const PRECACHE = [
   "./favicon.ico",
   "./favicon-96x96.png",
   "./apple-touch-icon.png",
-  "./icon-192.png",
-  "./icon-512.png",
-  "./icon-windows.png"
+  "./scenar_full_48.png",
+  "./scenar_full_96.png",
+  "./scenar_full_150.png",
+  "./scenar_full_192.png",
+  "./scenar_full_256.png",
+  "./scenar_full_512.png"
+
 ];
 
 self.addEventListener("install", (event) => {
@@ -79,6 +83,7 @@ async function cacheFirst(req) {
     return cached || Response.error();
   }
 }
+
 
 
 
